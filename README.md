@@ -8,7 +8,7 @@ I started with PPO from pixels. It never got through a level, so the final agent
 2. A PPO CnnPolicy network learns to play that route from the screen (behaviour cloning).
 
 📄 **Report:** [`report/Report_Prince_Valiant_RL.pdf`](report/Report_Prince_Valiant_RL.pdf)
-🎬 **Video:** [`Vedio_Level123/progress_video.mp4`] (Vedio_Level123/progress_video.mp4)
+🎬 **Video:** [`Vedio_Level123/progress_video.mp4`](Vedio_Level123/progress_video.mp4)
 
 ---
 
