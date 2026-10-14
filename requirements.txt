@@ -1,9 +1,9 @@
-# Versions used for the reported runs (Google Colab, Python 3.13). Random seed: 0 everywhere (--seed 0).
+# Exact versions used for all runs reported (Python 3.13, CPU). Random seed: 0 everywhere (--seed 0).
 stable-retro==1.0.1
 stable-baselines3==2.9.0
 gymnasium==1.4.0
-torch==2.11.0
-numpy==2.1.3
+torch==2.14.1
+numpy==2.5.3
 opencv-python-headless==5.0.0.93
 tensorboard==2.21.0
 pillow==12.3.0

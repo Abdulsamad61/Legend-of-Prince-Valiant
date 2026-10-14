@@ -1,0 +1,6 @@
+# Colab: keep Colab's preinstalled torch / numpy (reinstalling them can break the runtime); pin the RL stack.
+stable-retro==1.0.1
+stable-baselines3==2.9.0
+gymnasium==1.4.0
+opencv-python-headless==5.0.0.93
+tensorboard==2.21.0

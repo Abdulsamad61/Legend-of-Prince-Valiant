@@ -1,107 +1,135 @@
-# Legend of Prince Valiant (NES): an agent that clears Levels 1–3
+# Legend of Prince Valiant (NES) – RL agent
 
-This repo trains agents that clear the first three levels of *Legend of Prince Valiant* on the NES, using
-[stable-retro](https://github.com/Farama-Foundation/stable-retro) and [Stable-Baselines3](https://github.com/DLR-RM/stable-baselines3).
-
-I started with PPO from pixels. It never got through a level, so the final agents use **search + imitation**:
-1. A savestate search finds one route that clears the level.
-2. A PPO CnnPolicy network learns to play that route from the screen (behaviour cloning).
-
-📄 **Report:** [`report/Report_Prince_Valiant_RL.pdf`](report/Report_Prince_Valiant_RL.pdf)
-🎬 **Video:** `clips/progress_video_all.mp4` (or link: _add your video link here_)
-
----
+PPO experiments (v1–v4) and the final **search-then-imitate** agent (v5) that clears **Level 1** from the game's
+normal start in **10/10** evaluation episodes with deterministic actions, and the same technique for **Level 2** (The Forest) and
+**Level 3** (The Viking), each cleared in **10/10** episodes from the start of the level.
 
 ## Results
 
-10 evaluation episodes per test. Level 1 starts from the game's normal start; Levels 2 and 3 start from the first frame of
-that level. Task goal: at least 7/10 with deterministic actions.
+Fill in from your own runs (`eval.py` prints the completion rate; `eval_checkpoints.py` + `plot_curves.py` give the curves).
 
-| Test | Level 1 | Level 2 | Level 3 |
-|---|---|---|---|
-| **Deterministic** | **10/10** | **10/10** | **10/10** |
-| Temperature 0.1 | 8/10 | 10/10 | 10/10 |
-| Temperature 0.5 | 3/10 | 10/10 | 10/10 |
-| Shifted start (0–30 random no-ops) | 0/10 | 0/10 | 0/10 |
-| PPO baseline (200k steps) | 0/10 | 0/10 | not run |
+| Model | Method | Level 1 completion (normal start, 10 episodes) |
+|---|---|---|
+| PPO baseline | PPO from pixels, shaped reward | _your result_ |
+| BC + PPO (optional) | demonstrations as warm start + curriculum | _your result_ |
+| Final agent (v5) | exact imitation of the search-found route + time channel | _your result_ |
 
-**Honest limit:** each agent has learned one route very well. If the start is shifted a few frames, it fails.
+| Level 2 model | Method | Level 2 completion (Level 2 start, 10 episodes) |
+|---|---|---|
+| PPO baseline (`runs/l2_ppo`) | PPO from pixels, shaped reward + aim shaping | _your result_ |
+| Final Level 2 agent (`runs/l2_v1`) | exact imitation of the scripted aim-assist route + time channel | _your result_ |
 
-<p align="center">
-  <img src="report/graph_level1.png" width="90%"><br>
-  <em>Level 1: PPO (top) never clears; imitation (bottom) clears at epoch 50.</em>
-</p>
+| Level 3 model | Method | Level 3 completion (Level 3 start, 10 episodes) |
+|---|---|---|
+| Final Level 3 agent (`runs/l3_v1`) | exact imitation of the search-found route + 14-bit time channel | _your result_ |
 
----
+Reference values from the development run (2-core cloud CPU): PPO-only agents did not clear Level 1 (best: section 2 in
+3/10); the final agent cleared 10/10 deterministic, 10/10 at T=0.1, 7/10 at T=0.5, and 0/10 with a 0–30 no-op shifted
+start (it reproduces one route and does not generalise). Level 2: PPO 0/10 (≈5 robbers, ≈150 distance per life after 1.5M
+steps); final Level 2 agent 10/10 deterministic, 10/10 T=0.1, 10/10 T=0.5, 0/10 with a shifted start. Level 3: 10/10
+deterministic, 10/10 T=0.1, 10/10 T=0.5, 0/10 with a shifted start (12,533-step route, all lives kept).
 
-## Quick start (Google Colab)
-
-1. Zip this repo as `pvrl_code.zip` and put it, `colab_run.ipynb` and your own legally owned `.nes` ROM in a Google Drive folder
-   (the notebook uses `/content/drive/MyDrive/RL_TASK_L1_2`; change `WORK` in the first cell if yours is different).
-2. Open `colab_run.ipynb` in Colab and run the cells from top to bottom.
-
-It trains everything from scratch (PPO baselines + imitation for Levels 1–3), evaluates, draws the graphs and makes the video.
-
-## Run locally
+## Setup
 
 ```bash
-pip install -r requirements.txt
-mkdir roms && cp /path/to/your/rom.nes roms/      # ROM not included
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt            # on Google Colab: pip install -r requirements-colab.txt
+mkdir roms && cp /path/to/your/Legend_of_Prince_Valiant.nes roms/   # your own legally owned ROM (not included)
 python -m stable_retro.import roms/
 ```
+Or open `colab_run.ipynb` in Google Colab and run the cells top to bottom.
 
-| Step | Level 1 | Level 2 | Level 3 |
-|---|---|---|---|
-| PPO baseline | `python train.py --steps 200000 --envs 8 --seed 0 --out runs/ppo_baseline` | `python train_l2.py --steps 200000 --envs 8 --seed 0 --out runs/l2_ppo` | – |
-| Route | included: `optional_demo/demo_level1_full.json` | `python tools/aim_route_l2.py` | included: `optional_demo/demo_level3_route.json` |
-| Imitation | `python bc_exact.py --demos optional_demo/demo_level1_full.json --out runs/v5 --seed 0` | `python bc_exact_l2.py --demo runs/search_l2/level2_clear_aim.json --out runs/l2_v1 --seed 0` | `python bc_exact_l3.py --demo optional_demo/demo_level3_route.json --out runs/l3_v1 --seed 0` |
-| Evaluate | `python eval.py --model runs/v5/final.zip --episodes 10` | `python eval.py --model runs/l2_v1/final.zip --level 2 --episodes 10` | `python eval.py --model runs/l3_v1/final.zip --level 3 --episodes 10` |
+## Commands
 
-Extra eval options: `--temperature 0.1` (sampled actions), `--noop 30` (shifted start).
-
-Graphs and video:
 ```bash
-python make_graphs.py                                   # report/graph_level1-3.png, graph_ppo_entropy.png
-python make_video_all.py --out clips/progress_video_all.mp4
+# Evaluate the final agent exactly as the task defines it (normal start, deterministic, 10 episodes)
+python eval.py --model runs/v5/final.zip --episodes 10
+python eval.py --model runs/v5/final.zip --episodes 10 --temperature 0.1   # low temperature
+python eval.py --model runs/v5/final.zip --episodes 10 --noop 30           # robustness test
+
+# Re-train the final agent from the demonstration (≈2–5 min on CPU)
+python bc_exact.py --demos optional_demo/demo_level1_full.json --out runs/v5 --seed 0
+
+# Progress video (early / middle / final checkpoint + full uncut Level 1 run)
+python make_video.py --run runs/v5 --out clips/progress_video.mp4
+python eval_checkpoints.py --run runs/v5 --episodes 1 && python plot_curves.py --runs runs/ppo_baseline runs/v5
+
+# PPO training (v2/v3/v4 style); TensorBoard logs in runs/<name>/tb
+python train.py --steps 1000000 --envs 8 --seed 0 --out runs/ppo_baseline
+python bc.py --demos optional_demo/demo_level1_full.json --out runs/bc --epochs 60
+python train.py --steps 1500000 --envs 8 --seed 0 --curriculum 0.7 --starts runs/bc/demo_starts.pkl \
+                --init runs/bc/bc_policy.pt --ent 0.01 --out runs/bc_ppo
+tensorboard --logdir runs
+
+# Route search that produced the demonstration (savestate Go-Explore; hours; resumes its archive - re-run to continue)
+python tools/go_explore.py 41 3600 40                      # until the section-2 vine chain, and again for section 3 + boss
+python tools/go_explore.py 41 3600 40 2,850,1200 20        # vine chain: focus region, weight kills
+# on the boss kill the route is written to runs/search/level1_clear_*.json
 ```
 
----
+### Level 2
 
-## How it works
+```bash
+python train_l2.py --steps 1500000 --envs 8 --seed 0 --out runs/l2_ppo         # PPO baseline (pure RL)
+python tools/aim_route_l2.py                                                   # demonstration route (~1 min) -> runs/search_l2/level2_clear_aim.json
+python bc_exact_l2.py --demo runs/search_l2/level2_clear_aim.json --out runs/l2_v1 --seed 0
+python eval.py --model runs/l2_v1/final.zip --level 2 --episodes 10            # deterministic; add --temperature 0.1 / --noop 30
+python report/plot_level2.py                                                   # Level 2 curves -> report/fig_level2.png
+python make_video_l2.py --run runs/l2_v1 --out clips/progress_video_level2.mp4
+```
 
-| Part | Details |
-|---|---|
-| Observation | frame skip 4, grayscale, 84×84, 4 stacked frames (+1 channel with the step number for imitation) |
-| Actions | Level 1: 10 · Level 2: 19 (aim × fire + cover) · Level 3: 12 |
-| Game state | position, room/section, lives, timer, boss health and quest flags read from RAM |
-| PPO | 8 envs, n_steps 256, batch 256, lr 2.5e-4 (linear decay), clip 0.1, entropy 0.02, γ 0.99 |
-| Imitation | same CnnPolicy, Adam 1e-3, batch 128; checks the real game every 10 epochs and stops when the level is cleared |
-| Rules | lives, timer and invincibility are never changed; no level skips; savestates only for training and route search |
+### Level 3
 
-The routes were found once with a savestate search (`tools/go_explore*.py`, `tools/segments_l3.py`, several hours on CPU).
-They are included in `optional_demo/`, so you don't have to run the search again.
+```bash
+python bc_exact_l3.py --demo optional_demo/demo_level3_route.json --out runs/l3_v1 --seed 0     # ~15 min
+python eval.py --model runs/l3_v1/final.zip --level 3 --episodes 10
+python report/plot_level3.py; python make_video_l3.py --run runs/l3_v1 --out clips/progress_video_level3.mp4
+# route search (hours): whole-level search, then the room-by-room rebuild against the 10:00 timer
+python tools/go_explore_l3.py 1 14400
+python tools/segments_l3.py optional_demo/level3_room_plan.json runs/search_l3/seg 480 optional_demo/level3_first_search_route.json
+```
 
 ## Repository layout
 
-```
-pv/                  game environments (Level 1, 2, 3) and helpers
-tools/               route search (Go-Explore style) and Level 2 aim-assist route
-optional_demo/       the routes used for imitation
-states/              save states at the start of Level 2 and Level 3
-train.py, train_l2.py                        PPO baselines
-bc_exact.py, bc_exact_l2.py, bc_exact_l3.py  imitation training
-eval.py              10-episode evaluation
-make_graphs.py       reward / length / completion / entropy graphs
-make_video*.py       progress videos
-colab_run.ipynb      full pipeline on Google Colab
-report/              report (PDF + Word) and the script that builds it
-runs/                checkpoints, TensorBoard logs, eval results (created by training)
-```
+| Path | Content |
+|---|---|
+| `pv/env.py` | stable-retro env: frame skip 4, grayscale 84×84, 10 actions, shaped reward, `cleared` detection, curriculum starts, RAM map |
+| `pv/utils.py` | frame-stack flattening, time-aware observation channel |
+| `train.py` | PPO training (SB3), checkpoints every 5 % |
+| `bc.py`, `bc_exact.py` | behaviour cloning (warm start for PPO) / exact imitation (v5) |
+| `eval.py` | task evaluation: normal start, deterministic or temperature sampling, optional no-op robustness |
+| `make_video.py`, `record_video.py` | progress video / single clips |
+| `tools/go_explore.py` | savestate route search (demonstration generator, not RL) |
+| `eval_checkpoints.py`, `plot_curves.py` | completion rate per checkpoint; reward / length / completion curves |
+| `pv/env_l2.py` | Level 2 env: 19 actions (aim × fire + cover), two-channel observation (playfield + crosshair zoom), shaped reward, RAM map |
+| `train_l2.py`, `bc_exact_l2.py`, `make_video_l2.py` | Level 2 PPO / exact imitation / progress video |
+| `tools/aim_route_l2.py` | scripted aim-assist route for Level 2 (demonstration generator, not RL); `tools/go_explore_l2.py` = earlier savestate search |
+| `states/Level2.state` | save state at the start of Level 2 (training and evaluation start for Level 2) |
+| `optional_demo/demo_level2_aim.json` | the Level 2 route (2,704 actions) |
+| `pv/env_l3.py` | Level 3 env: 12 actions, 84×84 frames, exploration reward, RAM map |
+| `bc_exact_l3.py`, `make_video_l3.py` | Level 3 exact imitation / progress video |
+| `tools/go_explore_l3.py`, `tools/segments_l3.py` | Level 3 route search (whole level) and room-by-room rebuild; `graft_l3.py`, `weights_l3.py` = helpers used during the search |
+| `states/Level3.state`, `optional_demo/demo_level3_route.json` | Level 3 start state; the Level 3 route (12,533 actions) |
+| `colab_run.ipynb` | the whole pipeline on Google Colab, Levels 1–3, top to bottom |
+| `make_video_all.py` | one progress video for Levels 1–3 (early / middle / final checkpoint + full runs) |
+| `optional_demo/demo_level1_full.json` | route found by the search (3,611 actions) – use it instead of re-running the search |
+| `runs/` (created by training) | models, checkpoints, TensorBoard logs, eval results |
 
-## Hardware and versions
+## Environment details
 
-Google Colab: AMD EPYC 9B45 (48 cores), 176 GB RAM, NVIDIA RTX PRO 6000.
-Python 3.13 · stable-retro 1.0.1 · stable-baselines3 2.9.0 · gymnasium 1.4.0 · torch 2.11 · seed 0 everywhere.
-Imitation training: 0.7 / 1.1 / 2.3 min for Levels 1 / 2 / 3.
+* Actions (10): noop, RIGHT, LEFT, DOWN (duck), B (shoot), RIGHT+B, A (jump), RIGHT+A, LEFT+A, UP.
+* Observation: 4 stacked 84×84 grayscale frames (v5 adds one channel encoding the step counter in binary).
+* Reward (`Shaped.W`): +0.1 per pixel of **new** max progress, +20 per new section, +0.01 per score point,
+  +1 per boss hit, +50 level clear, −5 per life lost, −0.001 per step.
+* RAM map (found by probing): x = 86/87, scroll = 24/25, y = 88, jump timer = 94, section = 75, lives = 247,
+  level = 71, boss health = 183, timer = 647–649.
+* Level 2: actions = 9 aim directions × fire/no fire + B (take cover); A/B pressed on the first of the 4 frames (fire is
+  edge-triggered). Reward: +3 per robber, +0.25 per unit of new distance, ±0.01 per energy point, −3 per life, +50 clear,
+  −0.001 per step, potential-based aim shaping. RAM: crosshair x = (RAM[86] − RAM[24]) mod 256, y = 88; energy = 252;
+  distance = 24/25; sprite table 0x700.
+* Seeds: `--seed 0` for every run; the emulator itself is deterministic.
 
-The ROM is not included. Use your own legally owned copy.
+## Compute
+
+Report the machine you actually trained on (`colab_run.ipynb` section 1 writes `hardware.txt`).
+Reference throughput on a 2-core CPU: PPO ≈ 220–260 env steps/s with 8 envs; exact imitation ≈ 3 min; search: hours.
