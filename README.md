@@ -7,7 +7,7 @@ I started with PPO from pixels. It never got through a level, so the final agent
 1. A savestate search finds one route that clears the level.
 2. A PPO CnnPolicy network learns to play that route from the screen (behaviour cloning).
 
-📄 **Report:** [`report/Legend of Prince Valiant_RL_Task-AbdulSamad.pdf`](report/Legend of Prince Valiant_RL_Task-AbdulSamad.pdf)
+📄 **Report:** [`report/Legend_of_Prince_Valiant_RL_Task-AbdulSamad.pdf`](report/Legend_of_Prince_Valiant_RL_Task-AbdulSamad.pdf)
 🎬 **Video:** [`Vedio_Level123/progress_video.mp4`](Vedio_Level123/progress_video.mp4)
 
 ---
